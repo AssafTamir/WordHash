@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/cespare/xxhash"
 	"github.com/montanaflynn/stats"
+	crc642 "hash/crc64"
 	"log"
 	"os"
 	"time"
@@ -16,15 +17,14 @@ type void struct{}
 
 var nothing void
 var words = make(map[string]void)
-var hash = make([]float64, 1000)
+var hash = make([]float64, 10000)
 
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
-	fmt.Printf("%s took %s\n", name, elapsed)
+	fmt.Printf("%s took %s", name, elapsed)
 }
 
 func readFile() {
-	//defer timeTrack(time.Now(), "readFile")
 	file, err := os.Open("words.txt")
 	if err != nil {
 		log.Fatal(err)
@@ -42,8 +42,8 @@ func readFile() {
 	}
 }
 
-func sha256hash() {
-	defer timeTrack(time.Now(), "sha256hash")
+func sha256Hash() {
+	defer timeTrack(time.Now(), "sha256")
 	for word := range words {
 		h := sha256.New()
 		h.Write([]byte(word))
@@ -53,34 +53,37 @@ func sha256hash() {
 	}
 }
 
-func xxhashhash() {
-	defer timeTrack(time.Now(), "xxhashhash")
+func xxhashHash() {
+	defer timeTrack(time.Now(), "xxhash")
 	for word := range words {
 		index := xxhash.Sum64String(word)
 		hash[index%uint64(len(hash))]++
 	}
 }
-
-func main() {
+func crc64() {
+	defer timeTrack(time.Now(), "crc64")
+	for word := range words {
+		crc := crc642.New(crc642.MakeTable(crc642.ISO))
+		_, _ = crc.Write([]byte(word))
+		index := crc.Sum64()
+		hash[index%uint64(len(hash))]++
+	}
+}
+func benchTest(f func()) {
 	for i := 0; i < len(hash); i++ {
 		hash[i] = 0
 	}
-	readFile()
-	sha256hash()
+	f()
 	var d stats.Float64Data = hash
 
 	min, _ := d.Min()
 	max, _ := d.Max()
-	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n", min, max, stats.NormFit(hash))
-
-	for i := 0; i < len(hash); i++ {
-		hash[i] = 0
-	}
-	xxhashhash()
-	d = hash
-
-	min, _ = d.Min()
-	max, _ = d.Max()
-	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash))
+	fmt.Printf(" min=%v, max=%v, NormFit = %v \n", min, max, stats.NormFit(hash))
+}
+func main() {
+	readFile()
+	benchTest(sha256Hash)
+	benchTest(xxhashHash)
+	benchTest(crc64)
 
 }
