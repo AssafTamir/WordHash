@@ -1,0 +1,5 @@
+package WordHash
+
+func main() {
+
+}
