@@ -19,11 +19,11 @@ var hash = make([]float64, 1000)
 
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
-	fmt.Printf("%s took %s ", name, elapsed)
+	fmt.Printf("%s took %s\n", name, elapsed)
 }
 
 func readFile() {
-	defer timeTrack(time.Now(), "readFile")
+	//defer timeTrack(time.Now(), "readFile")
 	file, err := os.Open("words.txt")
 	if err != nil {
 		log.Fatal(err)
@@ -47,9 +47,8 @@ func sha256hash() {
 		h := sha256.New()
 		h.Write([]byte(word))
 		res := h.Sum(nil)
-		index := binary.BigEndian.Uint64(res)
+		index := binary.BigEndian.Uint64(res[0:8])
 		hash[index%uint64(len(hash))]++
-
 	}
 }
 
@@ -63,6 +62,6 @@ func main() {
 
 	min, _ := d.Min()
 	max, _ := d.Max()
-	fmt.Printf("\n\t min = %f, max = %f \n\n ", min, max) // 1
+	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash)) // 1
 
 }
