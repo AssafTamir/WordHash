@@ -27,8 +27,8 @@ func readFile() {
 	file, err := os.Open("words.txt")
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
-	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	// optionally, resize scanner's capacity for lines over 64K, see next example
@@ -43,7 +43,7 @@ func readFile() {
 
 func sha256hash() {
 	defer timeTrack(time.Now(), "sha256hash")
-	for word, _ := range words {
+	for word := range words {
 		h := sha256.New()
 		h.Write([]byte(word))
 		res := h.Sum(nil)
@@ -62,6 +62,5 @@ func main() {
 
 	min, _ := d.Min()
 	max, _ := d.Max()
-	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash)) // 1
-
+	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash))
 }
