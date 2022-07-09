@@ -71,7 +71,7 @@ func main() {
 
 	min, _ := d.Min()
 	max, _ := d.Max()
-	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash))
+	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n", min, max, stats.NormFit(hash))
 
 	for i := 0; i < len(hash); i++ {
 		hash[i] = 0
