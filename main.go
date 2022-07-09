@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"github.com/cespare/xxhash"
 	"github.com/montanaflynn/stats"
 	"log"
 	"os"
@@ -47,7 +48,15 @@ func sha256hash() {
 		h := sha256.New()
 		h.Write([]byte(word))
 		res := h.Sum(nil)
-		index := binary.BigEndian.Uint64(res[0:8])
+		index := binary.BigEndian.Uint64(res)
+		hash[index%uint64(len(hash))]++
+	}
+}
+
+func xxhashhash() {
+	defer timeTrack(time.Now(), "xxhashhash")
+	for word := range words {
+		index := xxhash.Sum64String(word)
 		hash[index%uint64(len(hash))]++
 	}
 }
@@ -63,4 +72,15 @@ func main() {
 	min, _ := d.Min()
 	max, _ := d.Max()
 	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash))
+
+	for i := 0; i < len(hash); i++ {
+		hash[i] = 0
+	}
+	xxhashhash()
+	d = hash
+
+	min, _ = d.Min()
+	max, _ = d.Max()
+	fmt.Printf("min=%v, max=%v, NormFit = %v \n\n ", min, max, stats.NormFit(hash))
+
 }
