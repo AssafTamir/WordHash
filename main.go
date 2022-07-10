@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/cespare/xxhash"
 	"github.com/montanaflynn/stats"
-	crc642 "hash/crc64"
+	"hash/crc64"
 	"hash/fnv"
 	"log"
 	"math"
@@ -60,10 +60,10 @@ func xxhashHash() {
 		hash[index%uint64(len(hash))]++
 	}
 }
-func crc64() {
+func crc64Hash() {
 	defer timeTrack(time.Now())
 	for word := range words {
-		crc := crc642.New(crc642.MakeTable(crc642.ISO))
+		crc := crc64.New(crc64.MakeTable(crc64.ISO))
 		_, _ = crc.Write([]byte(word))
 		index := crc.Sum64()
 		hash[index%uint64(len(hash))]++
@@ -94,13 +94,13 @@ func main() {
 	readFile()
 	benchTest(sha256Hash)
 	benchTest(xxhashHash)
-	benchTest(crc64)
+	benchTest(crc64Hash)
 	benchTest(hash64a)
 }
 
 /*
-C:/wo/WordHash/main.go:54       main.sha256Hash         208ms   min=22 max=76 StandardDeviation=7
-C:/wo/WordHash/main.go:62       main.xxhashHash         54ms    min=24 max=78 StandardDeviation=7
-C:/wo/WordHash/main.go:71       main.crc64              70ms    min=0 max=272 StandardDeviation=51
-C:/wo/WordHash/main.go:81       main.hash64a            56ms    min=21 max=75 StandardDeviation=7
+C:/wo/WordHash/main.go:54       main.sha256Hash         225ms   min=22 max=76 StandardDeviation=7
+C:/wo/WordHash/main.go:62       main.xxhashHash         63ms    min=24 max=78 StandardDeviation=7
+C:/wo/WordHash/main.go:71       main.crc64Hash          72ms    min=0 max=272 StandardDeviation=51
+C:/wo/WordHash/main.go:81       main.hash64a            54ms    min=21 max=75 StandardDeviation=7
 */
