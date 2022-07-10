@@ -20,7 +20,7 @@ type void struct{}
 
 var nothing void
 var words = make(map[string]void)
-var hash = make([]float64, 10000)
+var hash = make([]float64, 1000)
 
 func timeTrack(start time.Time) {
 	pc := make([]uintptr, 10) // at least 1 entry needed
