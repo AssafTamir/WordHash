@@ -10,6 +10,7 @@ import (
 	crc642 "hash/crc64"
 	"log"
 	"os"
+	runtime "runtime"
 	"time"
 )
 
@@ -19,9 +20,14 @@ var nothing void
 var words = make(map[string]void)
 var hash = make([]float64, 10000)
 
-func timeTrack(start time.Time, name string) {
+func timeTrack(start time.Time) {
+	pc := make([]uintptr, 10) // at least 1 entry needed
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	file, line := f.FileLine(pc[0])
+	fmt.Printf("%s:%d\t%s\t", file, line, f.Name())
 	elapsed := time.Since(start)
-	fmt.Printf("%s took %s", name, elapsed)
+	fmt.Printf("\t%s\t", elapsed)
 }
 
 func readFile() {
@@ -43,7 +49,7 @@ func readFile() {
 }
 
 func sha256Hash() {
-	defer timeTrack(time.Now(), "sha256")
+	defer timeTrack(time.Now())
 	for word := range words {
 		h := sha256.New()
 		h.Write([]byte(word))
@@ -54,14 +60,14 @@ func sha256Hash() {
 }
 
 func xxhashHash() {
-	defer timeTrack(time.Now(), "xxhash")
+	defer timeTrack(time.Now())
 	for word := range words {
 		index := xxhash.Sum64String(word)
 		hash[index%uint64(len(hash))]++
 	}
 }
 func crc64() {
-	defer timeTrack(time.Now(), "crc64")
+	defer timeTrack(time.Now())
 	for word := range words {
 		crc := crc642.New(crc642.MakeTable(crc642.ISO))
 		_, _ = crc.Write([]byte(word))
