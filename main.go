@@ -8,9 +8,11 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/montanaflynn/stats"
 	crc642 "hash/crc64"
+	"hash/fnv"
 	"log"
+	"math"
 	"os"
-	runtime "runtime"
+	"runtime"
 	"time"
 )
 
@@ -26,23 +28,15 @@ func timeTrack(start time.Time) {
 	f := runtime.FuncForPC(pc[0])
 	file, line := f.FileLine(pc[0])
 	fmt.Printf("%s:%d\t%s\t", file, line, f.Name())
-	elapsed := time.Since(start)
-	fmt.Printf("\t%s\t", elapsed)
+	fmt.Printf("\t%vms\t", time.Since(start).Milliseconds())
 }
 
 func readFile() {
-	file, err := os.Open("words.txt")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
+	file, _ := os.Open("words.txt")
 	scanner := bufio.NewScanner(file)
-	// optionally, resize scanner's capacity for lines over 64K, see next example
 	for scanner.Scan() {
 		words[scanner.Text()] = nothing
 	}
-
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
@@ -75,21 +69,31 @@ func crc64() {
 		hash[index%uint64(len(hash))]++
 	}
 }
+
+func hash64a() {
+	defer timeTrack(time.Now())
+	for word := range words {
+		h := fnv.New64a()
+		_, _ = h.Write([]byte(word))
+		index := h.Sum64()
+		hash[index%uint64(len(hash))]++
+	}
+}
+
 func benchTest(f func()) {
 	for i := 0; i < len(hash); i++ {
 		hash[i] = 0
 	}
 	f()
 	var d stats.Float64Data = hash
-
 	min, _ := d.Min()
 	max, _ := d.Max()
-	fmt.Printf(" min=%v, max=%v, NormFit = %v \n", min, max, stats.NormFit(hash))
+	fmt.Printf("min=%v max=%v StandardDeviation=%v\n", min, max, math.Round(stats.NormFit(hash)[1]))
 }
 func main() {
 	readFile()
 	benchTest(sha256Hash)
 	benchTest(xxhashHash)
 	benchTest(crc64)
-
+	benchTest(hash64a)
 }
