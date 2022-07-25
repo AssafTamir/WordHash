@@ -2,13 +2,16 @@ package main
 
 import (
 	"bufio"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"github.com/cespare/xxhash"
 	"github.com/montanaflynn/stats"
+	"golang.org/x/crypto/hkdf"
 	"hash/crc64"
 	"hash/fnv"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -20,7 +23,7 @@ type void struct{}
 
 var nothing void
 var words = make(map[string]void)
-var hash = make([]float64, 1000)
+var hashTable = make([]float64, 10000)
 
 func timeTrack(start time.Time) {
 	pc := make([]uintptr, 10) // at least 1 entry needed
@@ -49,7 +52,7 @@ func sha256Hash() {
 		h.Write([]byte(word))
 		res := h.Sum(nil)
 		index := binary.BigEndian.Uint64(res)
-		hash[index%uint64(len(hash))]++
+		hashTable[index%uint64(len(hashTable))]++
 	}
 }
 
@@ -57,7 +60,7 @@ func xxhashHash() {
 	defer timeTrack(time.Now())
 	for word := range words {
 		index := xxhash.Sum64String(word)
-		hash[index%uint64(len(hash))]++
+		hashTable[index%uint64(len(hashTable))]++
 	}
 }
 func crc64Hash() {
@@ -66,29 +69,57 @@ func crc64Hash() {
 		crc := crc64.New(crc64.MakeTable(crc64.ISO))
 		_, _ = crc.Write([]byte(word))
 		index := crc.Sum64()
-		hash[index%uint64(len(hash))]++
+		hashTable[index%uint64(len(hashTable))]++
 	}
 }
-
+func hkdfHash() {
+	defer timeTrack(time.Now())
+	for info := range words {
+		hash := sha256.New
+		secret := []byte{0x00, 0x01, 0x02, 0x03} // i.e. NOT this.
+		salt := make([]byte, hash().Size())
+		hkdfRes := hkdf.New(hash, secret, salt, []byte(info))
+		var keys []byte
+		for i := 0; i < 3; i++ {
+			key := make([]byte, 16)
+			if _, err := io.ReadFull(hkdfRes, key); err != nil {
+				panic(err)
+			}
+			keys = append(keys, key...)
+		}
+		index := binary.BigEndian.Uint64(keys)
+		hashTable[index%uint64(len(hashTable))]++
+	}
+}
 func hash64a() {
 	defer timeTrack(time.Now())
 	for word := range words {
 		h := fnv.New64a()
 		_, _ = h.Write([]byte(word))
 		index := h.Sum64()
-		hash[index%uint64(len(hash))]++
+		hashTable[index%uint64(len(hashTable))]++
+	}
+}
+func hmacsha256() {
+	defer timeTrack(time.Now())
+	for data := range words {
+		secret := "mysecret"
+		h := hmac.New(sha256.New, []byte(secret))
+		h.Write([]byte(data))
+		index := binary.BigEndian.Uint64(h.Sum(nil))
+		hashTable[index%uint64(len(hashTable))]++
 	}
 }
 
 func benchTest(f func()) {
-	for i := 0; i < len(hash); i++ {
-		hash[i] = 0
+	for i := 0; i < len(hashTable); i++ {
+		hashTable[i] = 0
 	}
 	f()
-	var d stats.Float64Data = hash
+	var d stats.Float64Data = hashTable
 	min, _ := d.Min()
 	max, _ := d.Max()
-	fmt.Printf("min=%v max=%v StandardDeviation=%v\n", min, max, math.Round(stats.NormFit(hash)[1]))
+	fmt.Printf("min=%v max=%v StandardDeviation=%v\n", min, max, math.Round(stats.NormFit(hashTable)[1]))
 }
 func main() {
 	readFile()
@@ -96,6 +127,8 @@ func main() {
 	benchTest(xxhashHash)
 	benchTest(crc64Hash)
 	benchTest(hash64a)
+	benchTest(hkdfHash)
+	benchTest(hmacsha256)
 }
 
 /*
